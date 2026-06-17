@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand: #1e8459;
+  --brand-dark: #196848;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900;
+}
+
+.sidebar-link {
+  @apply flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors;
+}
+
+.sidebar-link:hover {
+  @apply bg-brand-700 text-white;
+}
+
+.sidebar-link.active {
+  @apply bg-white text-brand-800 shadow-sm;
+}
+
+.card {
+  @apply bg-white rounded-xl border border-gray-200 shadow-sm p-6;
+}
+
+.btn-primary {
+  @apply bg-brand-600 hover:bg-brand-700 text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm;
+}
+
+.btn-secondary {
+  @apply bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-medium px-4 py-2 rounded-lg transition-colors text-sm;
+}
+
+.badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+.input {
+  @apply px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent;
+}
