@@ -88,6 +88,22 @@ def create_product(
     return product
 
 
+@router.get("/meta")
+def get_product_meta(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """過去に登録されたブランド・カテゴリ・仕入先の一覧を返す（オートコンプリート用）"""
+    brands = db.query(Product.brand).filter(Product.brand.isnot(None)).distinct().all()
+    categories = db.query(Product.category).filter(Product.category.isnot(None)).distinct().all()
+    sources = db.query(Product.acquired_from).filter(Product.acquired_from.isnot(None)).distinct().all()
+    return {
+        "brands": sorted([b[0] for b in brands if b[0]]),
+        "categories": sorted([c[0] for c in categories if c[0]]),
+        "acquired_from": sorted([s[0] for s in sources if s[0]]),
+    }
+
+
 @router.get("/{product_id}", response_model=ProductOut)
 def get_product(
     product_id: int,

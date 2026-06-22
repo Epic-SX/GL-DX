@@ -2,22 +2,29 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Header from "@/components/layout/Header";
-import { getProducts, deleteProduct } from "@/lib/api";
+import { getProducts, deleteProduct, getItemStats } from "@/lib/api";
 import {
   formatCurrency, formatDate,
   CONDITION_LABELS, STATUS_LABELS, STATUS_COLORS,
 } from "@/lib/utils";
 import type { Product } from "@/types";
 import Link from "next/link";
-import { Plus, Search, Filter, Trash2, Edit2, Eye } from "lucide-react";
+import { Plus, Search, Trash2, Edit2, Eye, TrendingUp } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+interface ItemStats {
+  found: number; sold_count: number; avg_sale_price: number; total_sales: number;
+  total_profit: number; avg_days_to_sell: number | null; turnover_rate: number; best_channel: string | null;
+}
 
 export default function InventoryPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [stats, setStats] = useState<ItemStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
   const [page, setPage] = useState(1);
 
   const fetchProducts = useCallback(async () => {
@@ -34,6 +41,20 @@ export default function InventoryPage() {
       setLoading(false);
     }
   }, [search, statusFilter, page]);
+
+  // ③ Fetch item stats when search has text
+  useEffect(() => {
+    if (!search || search.length < 2) { setStats(null); return; }
+    const t = setTimeout(async () => {
+      setStatsLoading(true);
+      try {
+        const r = await getItemStats(search);
+        setStats(r.data);
+      } catch { setStats(null); }
+      finally { setStatsLoading(false); }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [search]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
@@ -76,6 +97,31 @@ export default function InventoryPage() {
           </Link>
         </div>
 
+        {/* ③ Item stats panel */}
+        {(stats || statsLoading) && search.length >= 2 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3 text-blue-700 font-medium text-sm">
+              <TrendingUp size={16} />
+              「{search}」の過去取引データ
+              {statsLoading && <span className="text-blue-400 font-normal">（取得中...）</span>}
+            </div>
+            {stats && stats.sold_count > 0 ? (
+              <div className="grid grid-cols-4 gap-4 text-sm">
+                <div><div className="text-gray-500 text-xs">該当商品数</div><div className="font-semibold text-gray-800">{stats.found}点</div></div>
+                <div><div className="text-gray-500 text-xs">過去売却数</div><div className="font-semibold text-gray-800">{stats.sold_count}件</div></div>
+                <div><div className="text-gray-500 text-xs">平均売却額</div><div className="font-semibold text-brand-700">{formatCurrency(stats.avg_sale_price)}</div></div>
+                <div><div className="text-gray-500 text-xs">合計売上</div><div className="font-semibold text-gray-800">{formatCurrency(stats.total_sales)}</div></div>
+                <div><div className="text-gray-500 text-xs">合計粗利</div><div className="font-semibold text-green-700">{formatCurrency(stats.total_profit)}</div></div>
+                <div><div className="text-gray-500 text-xs">平均在庫日数（回転率）</div><div className="font-semibold text-gray-800">{stats.avg_days_to_sell != null ? `${stats.avg_days_to_sell}日` : "-"}</div></div>
+                <div><div className="text-gray-500 text-xs">回転率</div><div className="font-semibold text-gray-800">{stats.turnover_rate}回</div></div>
+                <div><div className="text-gray-500 text-xs">最多販路</div><div className="font-semibold text-gray-800">{stats.best_channel || "-"}</div></div>
+              </div>
+            ) : stats && (
+              <p className="text-sm text-gray-500">過去の売却データがありません</p>
+            )}
+          </div>
+        )}
+
         {/* Table */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
@@ -117,7 +163,7 @@ export default function InventoryPage() {
                       <td className="px-4 py-3">
                         {p.primary_image_url ? (
                           <img
-                            src={`${API_URL}${p.primary_image_url}`}
+                            src={p.primary_image_url.startsWith("http") ? p.primary_image_url : `${API_URL}${p.primary_image_url}`}
                             alt={p.name}
                             className="w-10 h-10 object-cover rounded-lg"
                           />
@@ -128,7 +174,8 @@ export default function InventoryPage() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="font-medium text-gray-900 truncate max-w-52">{p.name}</div>
+                        {/* ① Clickable product name */}
+                        <Link href={`/inventory/${p.id}`} className="font-medium text-brand-700 hover:underline truncate max-w-52 block">{p.name}</Link>
                         {p.brand && <div className="text-xs text-gray-400">{p.brand}</div>}
                       </td>
                       <td className="px-4 py-3 font-mono text-xs text-gray-600">{p.sku}</td>

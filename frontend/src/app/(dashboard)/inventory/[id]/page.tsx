@@ -113,9 +113,9 @@ export default function ProductDetailPage() {
         <div className="grid grid-cols-3 gap-6">
           {/* Images */}
           <div className="space-y-3">
-            {product.images.length > 0 ? (
+            {product.images?.length > 0 ? (
               <img
-                src={`${API_URL}${product.images.find((i) => i.is_primary)?.url || product.images[0].url}`}
+                src={(() => { const u = product.images?.find((i) => i.is_primary)?.url || product.images?.[0]?.url || ""; return u.startsWith("http") ? u : `${API_URL}${u}`; })()}
                 alt={product.name}
                 className="w-full aspect-square object-cover rounded-xl border border-gray-200"
               />
@@ -124,12 +124,12 @@ export default function ProductDetailPage() {
                 <Package size={48} className="text-gray-300" />
               </div>
             )}
-            {product.images.length > 1 && (
+            {product.images?.length > 1 && (
               <div className="flex gap-2 flex-wrap">
-                {product.images.slice(1).map((img) => (
+                {product.images?.slice(1).map((img) => (
                   <img
                     key={img.id}
-                    src={`${API_URL}${img.url}`}
+                    src={img.url.startsWith("http") ? img.url : `${API_URL}${img.url}`}
                     alt=""
                     className="w-16 h-16 object-cover rounded-lg border border-gray-200"
                   />

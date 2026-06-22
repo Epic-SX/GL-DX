@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Header from "@/components/layout/Header";
-import { getChannels, getListings } from "@/lib/api";
+import { getChannels, getListings, api } from "@/lib/api";
+// api is used directly for delist/update-price calls
 import { formatCurrency, formatDateTime, CHANNEL_LABELS } from "@/lib/utils";
 import type { Channel } from "@/types";
-import { Store, ExternalLink } from "lucide-react";
+import { Store, ExternalLink, XCircle, PencilLine } from "lucide-react";
 
 interface Listing {
   id: number;
@@ -41,14 +42,26 @@ export default function ChannelsPage() {
   const [activeChannel, setActiveChannel] = useState<string>("all");
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  function fetchAll() {
     Promise.all([getChannels(), getListings({ per_page: 200 })])
-      .then(([c, l]) => {
-        setChannels(c.data);
-        setListings(l.data);
-      })
+      .then(([c, l]) => { setChannels(c.data); setListings(l.data); })
       .finally(() => setLoading(false));
-  }, []);
+  }
+
+  useEffect(() => { fetchAll(); }, []);
+
+  async function handleDelist(listingId: number, productName: string) {
+    if (!confirm(`「${productName}」をこのチャネルから取り下げますか？`)) return;
+    await api.delete(`/channels/listings/${listingId}`);
+    fetchAll();
+  }
+
+  async function handleUpdatePrice(listingId: number, currentPrice: number) {
+    const input = prompt("新しい出品価格を入力してください", String(currentPrice));
+    if (!input || isNaN(Number(input))) return;
+    await api.patch(`/channels/listings/${listingId}`, { listed_price: Number(input) });
+    fetchAll();
+  }
 
   const filtered = activeChannel === "all"
     ? listings
@@ -118,6 +131,7 @@ export default function ChannelsPage() {
                   <th className="text-left px-4 py-3 font-medium text-gray-600">ステータス</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-600">出品価格</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">出品日時</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -139,6 +153,20 @@ export default function ChannelsPage() {
                     </td>
                     <td className="px-4 py-3 text-right font-medium">{formatCurrency(l.listed_price)}</td>
                     <td className="px-4 py-3 text-xs text-gray-400">{formatDateTime(l.listed_at)}</td>
+                    <td className="px-4 py-3">
+                      {l.status === "active" && (
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => handleUpdatePrice(l.id, l.listed_price)}
+                            className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-brand-600" title="価格変更">
+                            <PencilLine size={14} />
+                          </button>
+                          <button onClick={() => handleDelist(l.id, l.product_name)}
+                            className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500" title="取り下げ">
+                            <XCircle size={14} />
+                          </button>
+                        </div>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

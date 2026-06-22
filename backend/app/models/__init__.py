@@ -8,6 +8,7 @@ from app.models.staff_gps import StaffGPS
 from app.models.ebay_token import EbayToken
 from app.models.client import Client
 from app.models.stock_movement import StockMovement
+from app.models.accounting import AccountingEntry, BankAccount
 
 __all__ = [
     "User",
@@ -20,4 +21,5 @@ __all__ = [
     "EbayToken",
     "Client",
     "StockMovement",
+    "AccountingEntry", "BankAccount",
 ]

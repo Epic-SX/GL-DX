@@ -5,7 +5,8 @@ import Header from "@/components/layout/Header";
 import { getOrders, updateOrder, completeFulfillmentStep, issueSaleCertificate } from "@/lib/api";
 import { formatCurrency, formatDateTime, ORDER_STATUS_LABELS, CHANNEL_LABELS } from "@/lib/utils";
 import type { Order } from "@/types";
-import { ChevronDown, ChevronUp, FileText } from "lucide-react";
+import { ChevronDown, ChevronUp, FileText, Printer } from "lucide-react";
+import Link from "next/link";
 
 const STATUS_BADGE: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-700",
@@ -126,6 +127,13 @@ export default function OrdersPage() {
                           >
                             <FileText size={15} />
                           </button>
+                          <Link
+                            href={`/orders/${order.id}/delivery-note`}
+                            className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-brand-600"
+                            title="納品書印刷"
+                          >
+                            <Printer size={15} />
+                          </Link>
                           <button
                             onClick={() => setExpanded(expanded === order.id ? null : order.id)}
                             className="p-1.5 rounded hover:bg-gray-100 text-gray-500"

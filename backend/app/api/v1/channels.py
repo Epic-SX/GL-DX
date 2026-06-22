@@ -149,3 +149,45 @@ def bulk_list_product(
     db.commit()
 
     return {"listed_channels": created, "count": len(created)}
+
+
+@router.delete("/listings/{listing_id}")
+def delist_product(
+    listing_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_staff),
+):
+    """チャネルから商品を取り下げる"""
+    listing = db.query(Listing).filter(Listing.id == listing_id).first()
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    listing.status = ListingStatus.cancelled
+    # 他にアクティブな出品がなければ in_stock に戻す
+    remaining = db.query(Listing).filter(
+        Listing.product_id == listing.product_id,
+        Listing.status == ListingStatus.active,
+        Listing.id != listing_id,
+    ).first()
+    if not remaining and listing.product:
+        listing.product.status = ProductStatus.in_stock
+    db.commit()
+    return {"ok": True, "listing_id": listing_id}
+
+
+@router.patch("/listings/{listing_id}")
+def update_listing(
+    listing_id: int,
+    data: ListingUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_staff),
+):
+    """出品価格やステータスを更新する"""
+    listing = db.query(Listing).filter(Listing.id == listing_id).first()
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    if data.listed_price is not None:
+        listing.listed_price = data.listed_price
+    if data.status is not None:
+        listing.status = data.status
+    db.commit()
+    return {"ok": True, "listing_id": listing_id, "status": listing.status.value}

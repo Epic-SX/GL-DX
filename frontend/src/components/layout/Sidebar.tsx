@@ -14,6 +14,10 @@ import {
   Settings,
   LogOut,
   Users,
+  BookOpen,
+  Image,
+  FileText,
+  Building2,
 } from "lucide-react";
 import Cookies from "js-cookie";
 import { useRouter } from "next/navigation";
@@ -26,6 +30,10 @@ const navItems = [
   { href: "/channels", icon: Store, label: "販路連携" },
   { href: "/clients", icon: Users, label: "クライアント" },
   { href: "/analytics", icon: BarChart2, label: "売上分析" },
+  { href: "/accounting", icon: BookOpen, label: "経理" },
+  { href: "/fc-portal", icon: Building2, label: "FC管理" },
+  { href: "/contracts", icon: FileText, label: "契約管理" },
+  { href: "/media", icon: Image, label: "メディア" },
   { href: "/alerts", icon: Bell, label: "アラート" },
 ];
 

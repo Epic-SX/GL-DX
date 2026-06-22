@@ -292,3 +292,107 @@ export const listOnEbay = (productId: number, usdPrice: number) =>
 
 export const syncEbayOrders = () =>
   MOCK ? ok({ synced: 0, message: "デモモード: 同期スキップ" }) : api.post("/ebay/sync/orders");
+
+// ── Product meta (brand/category autocomplete) ────────────────────────────
+export const getProductMeta = () =>
+  MOCK ? ok(M.MOCK_PRODUCT_META) : api.get("/products/meta");
+
+// ── Item stats (③ past transaction analysis) ─────────────────────────────
+export const getItemStats = (q: string) =>
+  MOCK ? ok(M.MOCK_ITEM_STATS) : api.get("/analytics/item-stats", { params: { q } });
+
+// ── Accounting entries ────────────────────────────────────────────────────
+export const getAccountingEntries = (params?: Record<string, unknown>) =>
+  MOCK ? ok(M.MOCK_ACCOUNTING_ENTRIES) : api.get("/accounting/entries", { params });
+
+export const createAccountingEntry = (data: unknown) =>
+  MOCK
+    ? ok({ ...M.MOCK_ACCOUNTING_ENTRIES[0], ...(data as object), id: 99, voucher_number: "V20260616-0099" })
+    : api.post("/accounting/entries", data);
+
+export const updateAccountingEntry = (id: number, data: unknown) => {
+  if (MOCK) {
+    const e = M.MOCK_ACCOUNTING_ENTRIES.find((x) => x.id === id) ?? M.MOCK_ACCOUNTING_ENTRIES[0];
+    return ok({ ...e, ...(data as object) });
+  }
+  return api.patch(`/accounting/entries/${id}`, data);
+};
+
+export const deleteAccountingEntry = (id: number) =>
+  MOCK ? ok({ id }) : api.delete(`/accounting/entries/${id}`);
+
+export const getAccountingSummary = (year?: number) =>
+  MOCK
+    ? ok({ year: year ?? 2026, total: 550700, paid: 403000, pending: 147700, entry_count: 4 })
+    : api.get("/accounting/summary", { params: { year } });
+
+// ── Bank accounts ─────────────────────────────────────────────────────────
+export const getBankAccounts = () =>
+  MOCK ? ok(M.MOCK_BANK_ACCOUNTS) : api.get("/accounting/bank-accounts");
+
+export const createBankAccount = (data: unknown) =>
+  MOCK ? ok({ ...M.MOCK_BANK_ACCOUNTS[0], ...(data as object), id: 99 }) : api.post("/accounting/bank-accounts", data);
+
+export const deleteBankAccount = (id: number) =>
+  MOCK ? ok({ id }) : api.delete(`/accounting/bank-accounts/${id}`);
+
+// ── FC Portal (⑤) ────────────────────────────────────────────────────────
+export const getFcStores = () =>
+  MOCK ? ok(M.MOCK_FC_STORES) : api.get("/fc-portal/stores");
+
+export const generateFcPortalUrl = (storeId: number) =>
+  MOCK
+    ? ok({ ...M.MOCK_FC_STORES.find((s) => s.id === storeId), portal_token: `fc-store-${storeId}-${Math.random().toString(36).slice(2, 8)}`, portal_active: true })
+    : api.post(`/fc-portal/stores/${storeId}/generate-token`);
+
+export const getIntakeRequests = (status?: string) => {
+  if (MOCK) {
+    const list = status ? M.MOCK_INTAKE_REQUESTS.filter((r) => r.status === status) : M.MOCK_INTAKE_REQUESTS;
+    return ok(list);
+  }
+  return api.get("/fc-portal/intake", { params: { status } });
+};
+
+export const updateIntakeRequest = (id: number, data: { status: string }) =>
+  MOCK
+    ? ok({ ...M.MOCK_INTAKE_REQUESTS.find((r) => r.id === id), ...data })
+    : api.patch(`/fc-portal/intake/${id}`, data);
+
+// ── Contracts (⑩) ─────────────────────────────────────────────────────────
+export const getContracts = () =>
+  MOCK ? ok(M.MOCK_CONTRACTS) : api.get("/contracts");
+
+export const createContract = (data: unknown) =>
+  MOCK ? ok({ ...M.MOCK_CONTRACTS[0], ...(data as object), id: 99, contract_number: "CTR-2026-099", status: "draft" }) : api.post("/contracts", data);
+
+export const sendContract = (id: number) =>
+  MOCK ? ok({ ...M.MOCK_CONTRACTS.find((c) => c.id === id), status: "sent", sent_at: new Date().toISOString() }) : api.post(`/contracts/${id}/send`);
+
+export const signContract = (id: number) =>
+  MOCK ? ok({ ...M.MOCK_CONTRACTS.find((c) => c.id === id), status: "signed", signed_at: new Date().toISOString() }) : api.post(`/contracts/${id}/sign`);
+
+// ── Media Gallery (⑨) ─────────────────────────────────────────────────────
+export const getMediaGallery = (params?: { category?: string; product_id?: number }) => {
+  if (MOCK) {
+    let list = [...M.MOCK_MEDIA_ITEMS];
+    if (params?.category) list = list.filter((m) => m.category === params.category);
+    if (params?.product_id) list = list.filter((m) => m.product_id === params.product_id);
+    return ok(list);
+  }
+  return api.get("/media", { params });
+};
+
+// ── Market analysis (相場分析) ────────────────────────────────────────────
+export const getMarketAnalysis = () =>
+  MOCK ? ok(M.MOCK_MARKET_ANALYSIS) : api.get("/analytics/market");
+
+export const getMarketTrend = (params?: { category?: string; brand?: string; months?: number }) =>
+  MOCK ? ok(M.MOCK_MARKET_TREND) : api.get("/analytics/market/trend", { params });
+
+// ── Inventory analysis (在庫分析) ─────────────────────────────────────────
+export const getInventoryAnalysis = () =>
+  MOCK ? ok(M.MOCK_INVENTORY_ANALYSIS) : api.get("/analytics/inventory/analysis");
+
+// ── FC / Store analysis (FC・店舗別) ──────────────────────────────────────
+export const getFcAnalysis = (year?: number) =>
+  MOCK ? ok(M.MOCK_FC_ANALYSIS) : api.get("/analytics/fc", { params: { year } });

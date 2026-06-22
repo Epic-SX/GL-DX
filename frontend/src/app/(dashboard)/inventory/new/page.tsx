@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
-import { createProduct, uploadProductImage } from "@/lib/api";
+import { createProduct, uploadProductImage, getProductMeta } from "@/lib/api";
 import { ArrowLeft, Upload, Barcode } from "lucide-react";
 import Link from "next/link";
 
-const CATEGORIES = [
+const DEFAULT_CATEGORIES = [
   "ゲーム・ホビー", "家電・PC", "カメラ", "スマートフォン",
   "ブランド品", "時計・宝飾", "スポーツ", "アパレル",
   "楽器", "おもちゃ", "本・漫画", "CD・DVD", "その他",
@@ -15,6 +15,14 @@ const CATEGORIES = [
 
 export default function NewProductPage() {
   const router = useRouter();
+  const [meta, setMeta] = useState<{ brands: string[]; categories: string[]; acquired_from: string[] }>({ brands: [], categories: [], acquired_from: [] });
+
+  useEffect(() => {
+    getProductMeta().then((r) => setMeta(r.data)).catch(() => {});
+  }, []);
+
+  const allCategories = Array.from(new Set([...DEFAULT_CATEGORIES, ...meta.categories])).sort();
+
   const [form, setForm] = useState({
     name: "",
     brand: "",
@@ -97,7 +105,11 @@ export default function NewProductPage() {
             <div className="grid grid-cols-2 gap-4">
               <Field label="ブランド">
                 <input name="brand" value={form.brand} onChange={handleChange}
-                  className="input w-full" placeholder="Apple, SONY など" />
+                  className="input w-full" placeholder="Apple, SONY など"
+                  list="brand-list" autoComplete="off" />
+                <datalist id="brand-list">
+                  {meta.brands.map((b) => <option key={b} value={b} />)}
+                </datalist>
               </Field>
               <Field label="型番・モデル">
                 <input name="model_number" value={form.model_number} onChange={handleChange}
@@ -106,10 +118,12 @@ export default function NewProductPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <Field label="カテゴリ">
-                <select name="category" value={form.category} onChange={handleChange} className="input w-full">
-                  <option value="">選択してください</option>
-                  {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <input name="category" value={form.category} onChange={handleChange}
+                  className="input w-full" placeholder="カテゴリを選択または入力"
+                  list="category-list" autoComplete="off" />
+                <datalist id="category-list">
+                  {allCategories.map((c) => <option key={c} value={c} />)}
+                </datalist>
               </Field>
               <Field label="JANコード">
                 <div className="relative">
@@ -166,7 +180,11 @@ export default function NewProductPage() {
               </Field>
               <Field label="仕入先">
                 <input name="acquired_from" value={form.acquired_from} onChange={handleChange}
-                  className="input w-full" placeholder="仕入先名" />
+                  className="input w-full" placeholder="仕入先名"
+                  list="source-list" autoComplete="off" />
+                <datalist id="source-list">
+                  {meta.acquired_from.map((s) => <option key={s} value={s} />)}
+                </datalist>
               </Field>
             </div>
             <Field label="仕入日">
