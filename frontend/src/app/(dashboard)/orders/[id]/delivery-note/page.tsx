@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 import { getOrder } from "@/lib/api";
 import { ArrowLeft, Printer } from "lucide-react";
 import Link from "next/link";
@@ -23,14 +23,15 @@ interface Order {
   ordered_at: string; completed_at?: string;
 }
 
-export default function DeliveryNotePage({ params }: { params: { id: string } }) {
+export default function DeliveryNotePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const [order, setOrder] = useState<Order | null>(null);
   const [checks, setChecks] = useState<boolean[]>(CHECKLIST_ITEMS.map(() => false));
   const today = new Date().toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric" });
 
   useEffect(() => {
-    getOrder(Number(params.id)).then((r) => setOrder(r.data));
-  }, [params.id]);
+    getOrder(Number(id)).then((r) => setOrder(r.data));
+  }, [id]);
 
   if (!order) return <div className="p-10 text-center text-gray-400">読み込み中...</div>;
 
@@ -42,7 +43,7 @@ export default function DeliveryNotePage({ params }: { params: { id: string } })
     <div className="min-h-screen bg-gray-100">
       {/* Print controls - hidden when printing */}
       <div className="print:hidden bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-3">
-        <Link href={`/orders/${params.id}`} className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-brand-700">
+        <Link href={`/orders/${id}`} className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-brand-700">
           <ArrowLeft size={15} /> 受注詳細に戻る
         </Link>
         <button onClick={() => window.print()}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, use } from "react";
 import { Package, Camera, CheckCircle, Upload, ArrowLeft } from "lucide-react";
 
 const CATEGORIES = ["カメラ", "スマートフォン", "ゲーム", "腕時計", "バッグ", "家電・PC", "オーディオ", "ブランド品", "その他"];
@@ -12,7 +12,8 @@ const CONDITIONS = [
   { value: "D", label: "訳あり", desc: "傷・汚れ等あり" },
 ];
 
-export default function IntakePage({ params }: { params: { token: string } }) {
+export default function IntakePage({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = use(params);
   const [step, setStep] = useState<"form" | "done">("form");
   const [images, setImages] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
@@ -71,7 +72,7 @@ export default function IntakePage({ params }: { params: { token: string } }) {
 
       <div className="max-w-lg mx-auto px-4 py-6">
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-6 text-xs text-blue-700">
-          このフォームは <strong>ポータルID: {params.token.slice(0, 12)}...</strong> に紐付いています。
+          このフォームは <strong>ポータルID: {token.slice(0, 12)}...</strong> に紐付いています。
           商品の入庫申請情報を入力して本部に送信してください。
         </div>
 
