@@ -6,6 +6,7 @@ from app.core.database import get_db
 from app.models.alert import Alert
 from app.models.user import User
 from app.api.deps import get_current_user
+from app.services.alert_service import generate_inventory_alerts
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
@@ -17,6 +18,8 @@ def list_alerts(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # 自動アラート: 滞留在庫を都度スキャンして生成（冪等）
+    generate_inventory_alerts(db)
     query = db.query(Alert)
     if unread_only:
         query = query.filter(Alert.is_read == False)
@@ -42,6 +45,7 @@ def unread_count(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    generate_inventory_alerts(db)
     count = db.query(Alert).filter(Alert.is_read == False).count()
     return {"count": count}
 

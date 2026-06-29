@@ -191,3 +191,74 @@ def update_listing(
         listing.status = data.status
     db.commit()
     return {"ok": True, "listing_id": listing_id, "status": listing.status.value}
+
+
+class MigrateAuctionIn(BaseModel):
+    product_id: int
+    channel_type: str = ChannelType.yahoo_auction.value
+    price: Decimal = None
+
+
+@router.post("/migrate-to-auction", response_model=dict)
+def migrate_to_auction(
+    data: MigrateAuctionIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_manager),
+):
+    """滞留在庫をオークションチャネルへ移行する（値下げ・オークション移行管理）。
+
+    指定オークションチャネルにアクティブ出品を作成し、商品を出品中ステータスにする。
+    price 指定時はその価格で出品し、商品価格にも反映する。
+    """
+    product = db.query(Product).filter(Product.id == data.product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    try:
+        ch_type = ChannelType(data.channel_type)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid channel_type")
+
+    channel = db.query(Channel).filter(Channel.channel_type == ch_type).first()
+    if not channel:
+        raise HTTPException(status_code=404, detail=f"Auction channel '{data.channel_type}' not configured")
+
+    price = data.price if data.price is not None else product.selling_price
+
+    existing = db.query(Listing).filter(
+        Listing.product_id == product.id,
+        Listing.channel_id == channel.id,
+        Listing.status == ListingStatus.active,
+    ).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="既にこのオークションチャネルへ出品済みです")
+
+    listing = Listing(
+        product_id=product.id,
+        channel_id=channel.id,
+        listed_price=price,
+        status=ListingStatus.active,
+        listed_at=datetime.utcnow(),
+    )
+    db.add(listing)
+    product.status = ProductStatus.listed
+    if data.price is not None:
+        product.selling_price = price
+
+    # 関連する未読の滞留アラートを既読化（対応済み）
+    from app.models.alert import Alert, AlertType
+    db.query(Alert).filter(
+        Alert.product_id == product.id,
+        Alert.alert_type == AlertType.stagnant_inventory,
+        Alert.is_read == False,
+    ).update({"is_read": True, "read_at": datetime.utcnow()})
+
+    db.commit()
+    db.refresh(listing)
+    return {
+        "ok": True,
+        "listing_id": listing.id,
+        "product_id": product.id,
+        "channel": channel.name,
+        "listed_price": float(listing.listed_price),
+    }

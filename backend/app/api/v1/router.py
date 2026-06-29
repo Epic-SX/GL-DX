@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, products, orders, shipments, channels, analytics, alerts, ebay, clients, accounting
+from app.api.v1 import auth, products, orders, shipments, channels, analytics, alerts, ebay, clients, accounting, contracts, media, fc_portal
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -13,3 +13,6 @@ api_router.include_router(alerts.router)
 api_router.include_router(ebay.router)
 api_router.include_router(clients.router)
 api_router.include_router(accounting.router)
+api_router.include_router(contracts.router)
+api_router.include_router(media.router)
+api_router.include_router(fc_portal.router)

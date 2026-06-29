@@ -72,3 +72,4 @@ config/prohibited-terms-seed.json
 # Misc
 .cache/
 venv/
+__pycache__

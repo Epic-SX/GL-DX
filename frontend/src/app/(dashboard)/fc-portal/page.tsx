@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Header from "@/components/layout/Header";
-import { getFcStores, generateFcPortalUrl, getIntakeRequests, updateIntakeRequest } from "@/lib/api";
+import { getFcStores, generateFcPortalUrl, getIntakeRequests, updateIntakeRequest, createFcStore } from "@/lib/api";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { Building2, Copy, Check, RefreshCw, Plus, ExternalLink, CheckCircle, XCircle, Clock } from "lucide-react";
 
@@ -24,10 +24,24 @@ export default function FcPortalPage() {
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [generatingId, setGeneratingId] = useState<number | null>(null);
   const [actionId, setActionId] = useState<number | null>(null);
+  const [showStoreForm, setShowStoreForm] = useState(false);
+  const [savingStore, setSavingStore] = useState(false);
+  const [storeForm, setStoreForm] = useState({ store_name: "", owner_name: "", email: "", phone: "" });
 
   useEffect(() => {
     getFcStores().then((r) => setStores(r.data));
   }, []);
+
+  async function handleCreateStore(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingStore(true);
+    try {
+      const r = await createFcStore(storeForm);
+      setStores((prev) => [...prev, r.data]);
+      setShowStoreForm(false);
+      setStoreForm({ store_name: "", owner_name: "", email: "", phone: "" });
+    } finally { setSavingStore(false); }
+  }
 
   useEffect(() => {
     if (tab === "intake") {
@@ -63,6 +77,44 @@ export default function FcPortalPage() {
   return (
     <div className="flex flex-col flex-1">
       <Header title="FC管理" />
+
+      {showStoreForm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowStoreForm(false)}>
+          <form onClick={(e) => e.stopPropagation()} onSubmit={handleCreateStore}
+            className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-md space-y-4">
+            <h2 className="text-lg font-bold text-gray-800">新規FC店登録</h2>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">店舗名 *</label>
+              <input required value={storeForm.store_name} onChange={(e) => setStoreForm({ ...storeForm, store_name: e.target.value })}
+                className="input w-full" placeholder="例: 新宿店" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">オーナー名 *</label>
+              <input required value={storeForm.owner_name} onChange={(e) => setStoreForm({ ...storeForm, owner_name: e.target.value })}
+                className="input w-full" placeholder="例: 田中 一郎" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">メール</label>
+                <input type="email" value={storeForm.email} onChange={(e) => setStoreForm({ ...storeForm, email: e.target.value })}
+                  className="input w-full" placeholder="store@example.com" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">電話番号</label>
+                <input value={storeForm.phone} onChange={(e) => setStoreForm({ ...storeForm, phone: e.target.value })}
+                  className="input w-full" placeholder="03-1234-5678" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" onClick={() => setShowStoreForm(false)}
+                className="px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100">キャンセル</button>
+              <button type="submit" disabled={savingStore}
+                className="btn-primary text-sm disabled:opacity-50">{savingStore ? "登録中..." : "登録"}</button>
+            </div>
+          </form>
+        </div>
+      )}
+
       <div className="p-6 space-y-4">
         {/* Tabs */}
         <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
@@ -90,7 +142,7 @@ export default function FcPortalPage() {
             <div className="card">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-base font-semibold text-gray-800">FC店舗一覧</h2>
-                <button className="btn-primary flex items-center gap-2 text-sm">
+                <button onClick={() => setShowStoreForm(true)} className="btn-primary flex items-center gap-2 text-sm">
                   <Plus size={15} /> 新規FC店追加
                 </button>
               </div>

@@ -5,18 +5,9 @@ Documents generated:
   - generate_delivery_note_pdf → 納品書
   - generate_receipt_pdf       → 受領書（受取確認証）
 """
-import os
 from datetime import datetime
-from app.core.config import settings
-
-
-def _get_pdf_path(subdir: str, filename: str) -> tuple[str, str]:
-    """Return (filepath, url)"""
-    dirpath = os.path.join(settings.UPLOAD_DIR, subdir)
-    os.makedirs(dirpath, exist_ok=True)
-    filepath = os.path.join(dirpath, filename)
-    url = f"/uploads/{subdir}/{filename}"
-    return filepath, url
+from io import BytesIO
+from app.services.storage_service import save_bytes
 
 
 def generate_sale_certificate(order, certificate_number: str) -> str:
@@ -29,9 +20,9 @@ def generate_sale_certificate(order, certificate_number: str) -> str:
         from reportlab.pdfbase.ttfonts import TTFont
 
         filename = f"{certificate_number}.pdf"
-        filepath, url = _get_pdf_path("certificates", filename)
+        buffer = BytesIO()
 
-        c = canvas.Canvas(filepath, pagesize=A4)
+        c = canvas.Canvas(buffer, pagesize=A4)
         w, h = A4
 
         c.setFont("Helvetica-Bold", 18)
@@ -53,7 +44,7 @@ def generate_sale_certificate(order, certificate_number: str) -> str:
         c.drawString(20 * mm, 20 * mm, f"GL株式会社  Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
 
         c.save()
-        return url
+        return save_bytes(buffer.getvalue(), f"certificates/{filename}", "application/pdf")
     except Exception as e:
         print(f"PDF generation error: {e}")
         return ""
@@ -67,9 +58,9 @@ def generate_delivery_note_pdf(shipment, note_number: str) -> str:
         from reportlab.pdfgen import canvas
 
         filename = f"{note_number}.pdf"
-        filepath, url = _get_pdf_path("delivery_notes", filename)
+        buffer = BytesIO()
 
-        c = canvas.Canvas(filepath, pagesize=A4)
+        c = canvas.Canvas(buffer, pagesize=A4)
         w, h = A4
 
         c.setFont("Helvetica-Bold", 16)
@@ -95,7 +86,7 @@ def generate_delivery_note_pdf(shipment, note_number: str) -> str:
         c.setFont("Helvetica", 8)
         c.drawString(20 * mm, 20 * mm, "GL株式会社")
         c.save()
-        return url
+        return save_bytes(buffer.getvalue(), f"delivery_notes/{filename}", "application/pdf")
     except Exception as e:
         print(f"PDF generation error: {e}")
         return ""
@@ -109,9 +100,9 @@ def generate_receipt_pdf(shipment, receipt_number: str) -> str:
         from reportlab.pdfgen import canvas
 
         filename = f"{receipt_number}.pdf"
-        filepath, url = _get_pdf_path("receipts", filename)
+        buffer = BytesIO()
 
-        c = canvas.Canvas(filepath, pagesize=A4)
+        c = canvas.Canvas(buffer, pagesize=A4)
         w, h = A4
 
         c.setFont("Helvetica-Bold", 18)
@@ -149,7 +140,7 @@ def generate_receipt_pdf(shipment, receipt_number: str) -> str:
         c.setFont("Helvetica", 8)
         c.drawString(20 * mm, 20 * mm, f"GL株式会社  Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
         c.save()
-        return url
+        return save_bytes(buffer.getvalue(), f"receipts/{filename}", "application/pdf")
     except Exception as e:
         print(f"Receipt PDF generation error: {e}")
         return ""

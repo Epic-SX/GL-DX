@@ -448,20 +448,40 @@ def get_fc_analysis(
     for o in orders:
         by_staff[o.handled_by_id].append(o)
 
-    staff_ids = list(by_staff.keys())
+    # 買取(仕入)件数: 当年に取得された商品を担当者(created_by)別に集計
+    acquisitions = (
+        db.query(Product)
+        .filter(
+            Product.acquired_date >= start,
+            Product.acquired_date <= end,
+            Product.created_by_id.isnot(None),
+        )
+        .all()
+    )
+    purchases_by_staff: dict = defaultdict(lambda: {"count": 0, "amount": 0.0})
+    for p in acquisitions:
+        purchases_by_staff[p.created_by_id]["count"] += 1
+        purchases_by_staff[p.created_by_id]["amount"] += float(p.cost_price or 0)
+
+    # 売上担当者と買取担当者の両方を網羅
+    staff_ids = list(set(by_staff.keys()) | set(purchases_by_staff.keys()))
     staff_users = db.query(UserModel).filter(UserModel.id.in_(staff_ids)).all() if staff_ids else []
     staff_info = {u.id: u for u in staff_users}
 
     staff_data = []
-    for uid, ords in by_staff.items():
+    for uid in staff_ids:
+        ords = by_staff.get(uid, [])
         user = staff_info.get(uid)
         sales = sum(float(o.sale_price or 0) for o in ords)
         profit = sum(float(o.gross_profit or 0) for o in ords)
+        purch = purchases_by_staff.get(uid, {"count": 0, "amount": 0.0})
         staff_data.append({
             "staff_name": user.name if user else f"UID:{uid}",
             "store_name": (user.store_name if user and user.store_name else "本部"),
             "role": user.role if user else "staff",
             "order_count": len(ords),
+            "purchase_count": purch["count"],
+            "purchase_amount": round(purch["amount"]),
             "total_sales": round(sales),
             "total_profit": round(profit),
             "profit_margin": round(profit / sales * 100, 1) if sales > 0 else 0,
@@ -471,11 +491,13 @@ def get_fc_analysis(
     for i, d in enumerate(staff_data):
         d["rank"] = i + 1
 
-    by_store: dict = defaultdict(lambda: {"order_count": 0, "total_sales": 0.0, "total_profit": 0.0})
+    by_store: dict = defaultdict(lambda: {"order_count": 0, "purchase_count": 0, "purchase_amount": 0.0, "total_sales": 0.0, "total_profit": 0.0})
     for d in staff_data:
         s = d["store_name"]
         by_store[s]["store_name"] = s
         by_store[s]["order_count"] += d["order_count"]
+        by_store[s]["purchase_count"] += d["purchase_count"]
+        by_store[s]["purchase_amount"] += d["purchase_amount"]
         by_store[s]["total_sales"] += d["total_sales"]
         by_store[s]["total_profit"] += d["total_profit"]
 
@@ -485,6 +507,7 @@ def get_fc_analysis(
         s["profit_margin"] = round(s["total_profit"] / s["total_sales"] * 100, 1) if s["total_sales"] > 0 else 0
         s["total_sales"] = round(s["total_sales"])
         s["total_profit"] = round(s["total_profit"])
+        s["purchase_amount"] = round(s["purchase_amount"])
 
     ec_types = {"amazon", "rakuten", "shopify", "overseas"}
     ec_sales = sum(
@@ -505,4 +528,5 @@ def get_fc_analysis(
         "ec_sales": round(ec_sales),
         "store_sales": round(store_sales_total),
         "total_orders": len(orders),
+        "total_purchases": len(acquisitions),
     }

@@ -182,6 +182,11 @@ export const bulkListProduct = (productId: number, channelIds: number[], price: 
     ? ok({ listed: channelIds.length, product_id: productId, price })
     : api.post("/channels/bulk-list", null, { params: { product_id: productId, channel_ids: channelIds, price } });
 
+export const migrateToAuction = (productId: number, price?: number, channelType?: string) =>
+  MOCK
+    ? ok({ ok: true, product_id: productId, channel: "ヤフオク", listed_price: price ?? 0 })
+    : api.post("/channels/migrate-to-auction", { product_id: productId, price, channel_type: channelType });
+
 // ── Analytics ─────────────────────────────────────────────────────────────
 export const getAnalyticsSummary = () =>
   MOCK ? ok(M.MOCK_ANALYTICS_SUMMARY) : api.get("/analytics/summary");
@@ -357,6 +362,20 @@ export const updateIntakeRequest = (id: number, data: { status: string }) =>
   MOCK
     ? ok({ ...M.MOCK_INTAKE_REQUESTS.find((r) => r.id === id), ...data })
     : api.patch(`/fc-portal/intake/${id}`, data);
+
+export const createFcStore = (data: { store_name: string; owner_name: string; email?: string; phone?: string }) =>
+  MOCK
+    ? ok({ id: 99, ...data, portal_token: null, portal_active: false, status: "pending", last_intake: null, intake_count: 0 })
+    : api.post("/fc-portal/stores", data);
+
+// Public (FC store, no login) — portal validation + intake submission
+export const getPortalInfo = (token: string) =>
+  MOCK ? ok({ store_name: "デモ店舗", valid: true }) : api.get(`/fc-portal/public/${token}`);
+
+export const submitIntake = (token: string, formData: FormData) =>
+  MOCK
+    ? ok({ id: 1, status: "pending" })
+    : api.post(`/fc-portal/public/${token}/intake`, formData, { headers: { "Content-Type": "multipart/form-data" } });
 
 // ── Contracts (⑩) ─────────────────────────────────────────────────────────
 export const getContracts = () =>

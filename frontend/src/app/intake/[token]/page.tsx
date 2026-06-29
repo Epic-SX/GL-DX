@@ -2,6 +2,7 @@
 
 import { useState, use } from "react";
 import { Package, Camera, CheckCircle, Upload, ArrowLeft } from "lucide-react";
+import { submitIntake } from "@/lib/api";
 
 const CATEGORIES = ["カメラ", "スマートフォン", "ゲーム", "腕時計", "バッグ", "家電・PC", "オーディオ", "ブランド品", "その他"];
 const CONDITIONS = [
@@ -17,6 +18,7 @@ export default function IntakePage({ params }: { params: Promise<{ token: string
   const [step, setStep] = useState<"form" | "done">("form");
   const [images, setImages] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [form, setForm] = useState({
     item_name: "", brand: "", category: "", condition: "A",
     estimated_price: "", quantity: "1", notes: "",
@@ -29,9 +31,24 @@ export default function IntakePage({ params }: { params: Promise<{ token: string
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    setLoading(false);
-    setStep("done");
+    setError("");
+    try {
+      const fd = new FormData();
+      fd.append("item_name", form.item_name);
+      fd.append("brand", form.brand);
+      fd.append("category", form.category);
+      fd.append("condition", form.condition);
+      fd.append("estimated_price", form.estimated_price || "0");
+      fd.append("quantity", form.quantity || "1");
+      fd.append("notes", form.notes);
+      images.forEach((f) => fd.append("images", f));
+      await submitIntake(token, fd);
+      setStep("done");
+    } catch {
+      setError("送信に失敗しました。ポータルURLが有効かご確認のうえ、もう一度お試しください。");
+    } finally {
+      setLoading(false);
+    }
   }
 
   if (step === "done") {
@@ -154,6 +171,10 @@ export default function IntakePage({ params }: { params: Promise<{ token: string
             )}
             <p className="text-xs text-gray-400">全体・正面・裏面・傷箇所を撮影してください</p>
           </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-600">{error}</div>
+          )}
 
           <button type="submit" disabled={loading}
             className="w-full py-3.5 bg-brand-700 text-white rounded-xl font-semibold text-base hover:bg-brand-800 disabled:opacity-50 transition-colors">

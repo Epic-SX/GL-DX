@@ -1,4 +1,3 @@
-import os
 import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
@@ -6,7 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
 from app.core.database import get_db
-from app.core.config import settings
+from app.services.storage_service import save_bytes
 from app.models.product import Product, ProductImage, ProductStatus
 from app.models.stock_movement import StockMovement, MovementReason
 from app.models.user import User
@@ -164,15 +163,13 @@ async def upload_product_image(
 
     ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "jpg"
     filename = f"{uuid.uuid4()}.{ext}"
-    upload_path = os.path.join(settings.UPLOAD_DIR, "products", str(product_id))
-    os.makedirs(upload_path, exist_ok=True)
-    filepath = os.path.join(upload_path, filename)
 
     content = await file.read()
-    with open(filepath, "wb") as f:
-        f.write(content)
-
-    url = f"/uploads/products/{product_id}/{filename}"
+    url = save_bytes(
+        content,
+        f"products/{product_id}/{filename}",
+        content_type=file.content_type or "image/jpeg",
+    )
 
     if is_primary:
         for img in product.images:

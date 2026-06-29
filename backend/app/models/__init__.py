@@ -9,6 +9,8 @@ from app.models.ebay_token import EbayToken
 from app.models.client import Client
 from app.models.stock_movement import StockMovement
 from app.models.accounting import AccountingEntry, BankAccount
+from app.models.contract import Contract
+from app.models.fc_store import FcStore, IntakeRequest
 
 __all__ = [
     "User",
@@ -22,4 +24,6 @@ __all__ = [
     "Client",
     "StockMovement",
     "AccountingEntry", "BankAccount",
+    "Contract",
+    "FcStore", "IntakeRequest",
 ]

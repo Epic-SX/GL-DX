@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Header from "@/components/layout/Header";
 import {
   getMonthlySales, getSalesByChannel, getStagnantInventory, getAnalyticsSummary, exportOrdersCsv,
-  getMarketAnalysis, getMarketTrend, getInventoryAnalysis, getFcAnalysis, updateProduct,
+  getMarketAnalysis, getMarketTrend, getInventoryAnalysis, getFcAnalysis, updateProduct, migrateToAuction,
 } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 import type { AnalyticsSummary, MonthlySales } from "@/types";
@@ -33,9 +33,9 @@ interface MarketTrendPoint { year: number; month: number; label: string; avg_pri
 interface CategoryInventory { category: string; count: number; value: number; cost_value: number; unrealized_profit: number; }
 interface StagnantActionItem { id: number; name: string; sku: string; selling_price: number; cost_price: number; days_in_stock: number; suggested_price: number; shelf_location: string | null; category: string | null; }
 interface InventoryAnalysis { total_inventory_value: number; total_cost_value: number; unrealized_profit: number; total_items: number; sold_last_30d: number; turnover_rate: number; stagnant_30d_count: number; stagnant_60d_count: number; stagnant_90d_count: number; by_category: CategoryInventory[]; stagnant_items: StagnantActionItem[]; }
-interface StaffStat { rank: number; staff_name: string; store_name: string; role: string; order_count: number; total_sales: number; total_profit: number; profit_margin: number; }
-interface StoreStat { rank: number; store_name: string; order_count: number; total_sales: number; total_profit: number; profit_margin: number; }
-interface FcAnalysis { year: number; by_staff: StaffStat[]; by_store: StoreStat[]; ec_sales: number; store_sales: number; total_orders: number; }
+interface StaffStat { rank: number; staff_name: string; store_name: string; role: string; order_count: number; purchase_count: number; purchase_amount: number; total_sales: number; total_profit: number; profit_margin: number; }
+interface StoreStat { rank: number; store_name: string; order_count: number; purchase_count: number; purchase_amount: number; total_sales: number; total_profit: number; profit_margin: number; }
+interface FcAnalysis { year: number; by_staff: StaffStat[]; by_store: StoreStat[]; ec_sales: number; store_sales: number; total_orders: number; total_purchases: number; }
 
 function StatCard({ label, value, sub, color = "brand" }: { label: string; value: string; sub?: string; color?: string }) {
   const colors: Record<string, string> = { brand: "text-brand-700", green: "text-green-700", blue: "text-blue-700", orange: "text-orange-600" };
@@ -141,6 +141,17 @@ export default function AnalyticsPage() {
       const r = await getInventoryAnalysis();
       setInventoryAnalysis(r.data);
     } finally { setActionLoading(null); }
+  }
+
+  async function handleMigrateAuction(item: StagnantActionItem) {
+    if (!confirm(`「${item.name}」を¥${item.suggested_price.toLocaleString()}でヤフオク（オークション）へ移行しますか？`)) return;
+    setActionLoading(item.id);
+    try {
+      await migrateToAuction(item.id, item.suggested_price);
+      const r = await getInventoryAnalysis();
+      setInventoryAnalysis(r.data);
+    } catch { alert("オークション移行に失敗しました"); }
+    finally { setActionLoading(null); }
   }
 
   const sortedMarket = [...marketData].sort((a, b) => b[marketSort] - a[marketSort]);
@@ -464,14 +475,23 @@ export default function AnalyticsPage() {
                             <div className="text-xs text-gray-400">-{((1 - item.suggested_price / item.selling_price) * 100).toFixed(0)}%</div>
                           </td>
                           <td className="py-3 px-3">
-                            <button
-                              onClick={() => handleMarkdown(item)}
-                              disabled={actionLoading === item.id}
-                              className="px-2.5 py-1 bg-orange-100 text-orange-700 rounded text-xs font-medium hover:bg-orange-200 disabled:opacity-50 flex items-center gap-1 ml-auto"
-                            >
-                              {actionLoading === item.id && <RefreshCw size={10} className="animate-spin" />}
-                              値下げ実行
-                            </button>
+                            <div className="flex items-center gap-1.5 justify-end">
+                              <button
+                                onClick={() => handleMarkdown(item)}
+                                disabled={actionLoading === item.id}
+                                className="px-2.5 py-1 bg-orange-100 text-orange-700 rounded text-xs font-medium hover:bg-orange-200 disabled:opacity-50 flex items-center gap-1"
+                              >
+                                {actionLoading === item.id && <RefreshCw size={10} className="animate-spin" />}
+                                値下げ
+                              </button>
+                              <button
+                                onClick={() => handleMigrateAuction(item)}
+                                disabled={actionLoading === item.id}
+                                className="px-2.5 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium hover:bg-purple-200 disabled:opacity-50"
+                              >
+                                オークション移行
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -508,7 +528,8 @@ export default function AnalyticsPage() {
 
             {fcData ? (
               <>
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-5 gap-4">
+                  <StatCard label="総買取件数" value={`${fcData.total_purchases}件`} sub={`${fcYear}年`} color="brand" />
                   <StatCard label="総受注件数" value={`${fcData.total_orders}件`} sub={`${fcYear}年`} color="brand" />
                   <StatCard label="EC売上" value={formatCurrency(fcData.ec_sales)} sub="Amazon / 楽天 / Shopify / 海外" color="blue" />
                   <StatCard label="店舗売上" value={formatCurrency(fcData.store_sales)} sub="直営・FC店舗" color="green" />
@@ -582,6 +603,7 @@ export default function AnalyticsPage() {
                         <tr className="border-b border-gray-200 bg-gray-50">
                           <th className="text-left py-2 px-3 font-medium text-gray-600 w-12">順位</th>
                           <th className="text-left py-2 px-3 font-medium text-gray-600">店舗名</th>
+                          <th className="text-right py-2 px-3 font-medium text-gray-600">買取件数</th>
                           <th className="text-right py-2 px-3 font-medium text-gray-600">受注件数</th>
                           <th className="text-right py-2 px-3 font-medium text-gray-600">売上</th>
                           <th className="text-right py-2 px-3 font-medium text-gray-600">粗利</th>
@@ -593,6 +615,7 @@ export default function AnalyticsPage() {
                           <tr key={s.store_name} className="hover:bg-gray-50">
                             <td className="py-3 px-3"><RankBadge rank={s.rank} /></td>
                             <td className="py-3 px-3 font-medium text-gray-800">{s.store_name}</td>
+                            <td className="py-3 px-3 text-right text-gray-600">{s.purchase_count}件</td>
                             <td className="py-3 px-3 text-right text-gray-600">{s.order_count}件</td>
                             <td className="py-3 px-3 text-right font-medium text-brand-700">{formatCurrency(s.total_sales)}</td>
                             <td className="py-3 px-3 text-right font-medium text-green-700">{formatCurrency(s.total_profit)}</td>
@@ -600,7 +623,7 @@ export default function AnalyticsPage() {
                           </tr>
                         ))}
                         {fcData.by_store.length === 0 && (
-                          <tr><td colSpan={6} className="text-center py-8 text-gray-400">データなし</td></tr>
+                          <tr><td colSpan={7} className="text-center py-8 text-gray-400">データなし</td></tr>
                         )}
                       </tbody>
                     </table>
@@ -623,7 +646,7 @@ export default function AnalyticsPage() {
                             <td className="py-3 px-3"><RankBadge rank={s.rank} /></td>
                             <td className="py-3 px-3 font-medium text-gray-800">{s.staff_name}</td>
                             <td className="py-3 px-3 text-gray-600">{s.store_name}</td>
-                            <td className="py-3 px-3 text-right text-gray-600">{s.order_count}件</td>
+                            <td className="py-3 px-3 text-right text-gray-600">{s.purchase_count}件</td>
                             <td className="py-3 px-3 text-right font-medium text-brand-700">{formatCurrency(s.total_sales)}</td>
                             <td className="py-3 px-3 text-right font-medium text-green-700">{formatCurrency(s.total_profit)}</td>
                             <td className="py-3 px-3 text-right text-gray-700">{s.profit_margin}%</td>
